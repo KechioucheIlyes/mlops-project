@@ -29,16 +29,7 @@ services:
       - ./airflow/dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
     command: >
-      bash -c "
-      airflow db migrate &&
-      airflow users create
-        --username admin
-        --password admin
-        --firstname Admin
-        --lastname User
-        --role Admin
-        --email admin@example.com || true
-      "
+      bash -c "airflow db migrate"
     restart: "no"
 
   airflow-webserver:
@@ -56,10 +47,12 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY}
+      AIRFLOW__AUTH_MANAGER__SIMPLE_AUTH_MANAGER_USERS: "admin:admin"
+      AIRFLOW__AUTH_MANAGER__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "true"
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
-    command: webserver
+    command: api-server
     ports:
       - "8080:8080"
     restart: unless-stopped
