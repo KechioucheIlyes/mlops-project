@@ -72,6 +72,7 @@ services:
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
+      - ./simple_auth_manager_passwords.json:/opt/airflow/simple_auth_manager_passwords.json.generated
     command: api-server
     ports:
       - "8080:8080"
