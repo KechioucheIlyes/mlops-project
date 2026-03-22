@@ -54,8 +54,6 @@ def create_runpod_pod() -> str:
         "containerDiskInGb": int(os.getenv("RUNPOD_CONTAINER_DISK_GB", "20")),
         "volumeInGb": int(os.getenv("RUNPOD_VOLUME_GB", "40")),
         "volumeMountPath": "/workspace",
-        "dockerEntrypoint": [],
-        "dockerStartCmd": [],
     }
 
     print(f"Payload envoyé: {payload}")
