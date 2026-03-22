@@ -2,9 +2,12 @@ from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.models import Variable
 
-from runpod_client import create_runpod_pod, wait_until_running, terminate_pod
+from runpod_client import (
+    create_runpod_pod,
+    wait_until_job_finishes,
+    terminate_pod,
+)
 
 
 def create_pod_task(**context):
@@ -12,13 +15,21 @@ def create_pod_task(**context):
     context["ti"].xcom_push(key="runpod_pod_id", value=pod_id)
 
 
-def wait_pod_task(**context):
-    pod_id = context["ti"].xcom_pull(key="runpod_pod_id", task_ids="create_runpod_pod")
-    wait_until_running(pod_id)
+def wait_for_training_task(**context):
+    pod_id = context["ti"].xcom_pull(
+        key="runpod_pod_id",
+        task_ids="create_runpod_pod",
+    )
+
+    final_pod_state = wait_until_job_finishes(pod_id)
+    context["ti"].xcom_push(key="runpod_final_state", value=final_pod_state)
 
 
 def terminate_pod_task(**context):
-    pod_id = context["ti"].xcom_pull(key="runpod_pod_id", task_ids="create_runpod_pod")
+    pod_id = context["ti"].xcom_pull(
+        key="runpod_pod_id",
+        task_ids="create_runpod_pod",
+    )
     if pod_id:
         terminate_pod(pod_id)
 
@@ -42,9 +53,9 @@ with DAG(
         python_callable=create_pod_task,
     )
 
-    wait_until_running_op = PythonOperator(
-        task_id="wait_until_running",
-        python_callable=wait_pod_task,
+    wait_for_training_op = PythonOperator(
+        task_id="wait_for_training_completion",
+        python_callable=wait_for_training_task,
     )
 
     terminate_pod_op = PythonOperator(
@@ -53,4 +64,4 @@ with DAG(
         trigger_rule="all_done",
     )
 
-    create_runpod_pod_op >> wait_until_running_op >> terminate_pod_op
+    create_runpod_pod_op >> wait_for_training_op >> terminate_pod_op

@@ -41,6 +41,7 @@ def build_env_payload() -> dict:
     ]
     return {k: os.environ[k] for k in keys if k in os.environ}
 
+
 def create_runpod_pod() -> str:
     payload = {
         "name": "train-service-airflow",
@@ -64,13 +65,14 @@ def create_runpod_pod() -> str:
         json=payload,
         timeout=60,
     )
-    
-    print(f"Status: {response.status_code}")
-    print(f"Réponse: {response.text}")
-    
+
+    print(f"Status création pod: {response.status_code}")
+    print(f"Réponse création pod: {response.text}")
+
     response.raise_for_status()
     data = response.json()
     return data["id"]
+
 
 def get_pod(pod_id: str) -> dict:
     response = requests.get(
@@ -79,25 +81,55 @@ def get_pod(pod_id: str) -> dict:
         timeout=60,
     )
     response.raise_for_status()
-    return response.json()
+    data = response.json()
+    print(f"Etat brut du pod {pod_id}: {data}")
+    return data
 
 
-def wait_until_running(pod_id: str, timeout_seconds: int = 900) -> dict:
+def wait_until_job_finishes(pod_id: str, timeout_seconds: int = 7200) -> dict:
+    """
+    Attend que le conteneur ait réellement fini son exécution.
+    On ne s'arrête PAS quand le pod devient RUNNING.
+    """
     start = time.time()
+    has_been_running = False
+
     while time.time() - start < timeout_seconds:
         pod = get_pod(pod_id)
-        desired = pod.get("desiredStatus")
-        actual = pod.get("status")
-        if desired == "RUNNING" or actual == "RUNNING":
+
+        desired_status = pod.get("desiredStatus")
+        status = pod.get("status")
+        container_status = pod.get("containerStatus")
+
+        print(
+            f"[WAIT] pod_id={pod_id} | "
+            f"desiredStatus={desired_status} | "
+            f"status={status} | "
+            f"containerStatus={container_status}"
+        )
+
+        # Le pod a bien démarré à un moment donné
+        if status == "RUNNING" or desired_status == "RUNNING":
+            has_been_running = True
+            print("Le pod est en cours d'exécution...")
+
+        # Une fois qu'il a été RUNNING, on attend qu'il quitte cet état
+        if has_been_running and status not in [None, "RUNNING"]:
+            print(f"Le pod a quitté l'état RUNNING avec status={status}")
             return pod
-        time.sleep(10)
-    raise TimeoutError(f"Pod {pod_id} did not become RUNNING in time.")
+
+        time.sleep(15)
+
+    raise TimeoutError(f"Le pod {pod_id} n'a pas terminé dans le délai imparti.")
 
 
 def terminate_pod(pod_id: str) -> None:
+    print(f"Suppression du pod {pod_id} ...")
     response = requests.delete(
         f"{RUNPOD_BASE_URL}/pods/{pod_id}",
         headers=_headers(),
         timeout=60,
     )
+    print(f"Status suppression: {response.status_code}")
+    print(f"Réponse suppression: {response.text}")
     response.raise_for_status()
