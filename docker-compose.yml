@@ -73,6 +73,7 @@ services:
       AIRFLOW__AUTH_MANAGER__SIMPLE_AUTH_MANAGER_USERS: "admin:admin"
       AIRFLOW__AUTH_MANAGER__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "true"
       AIRFLOW__CORE__EXECUTION_API_SERVER_URL: "http://airflow-webserver:8080/execution/"
+      AIRFLOW__SECRETS__JWT_SECRET: ${AIRFLOW_JWT_SECRET}
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
@@ -99,6 +100,7 @@ services:
       AIRFLOW__API__SECRET_KEY: ${AIRFLOW_SECRET_KEY}
       AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY}
       AIRFLOW__CORE__EXECUTION_API_SERVER_URL: "http://airflow-webserver:8080/execution/"
+      AIRFLOW__SECRETS__JWT_SECRET: ${AIRFLOW_JWT_SECRET}
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
