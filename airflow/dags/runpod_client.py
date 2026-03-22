@@ -41,7 +41,6 @@ def build_env_payload() -> dict:
     ]
     return {k: os.environ[k] for k in keys if k in os.environ}
 
-
 def create_runpod_pod() -> str:
     payload = {
         "name": "train-service-airflow",
@@ -59,16 +58,21 @@ def create_runpod_pod() -> str:
         "dockerStartCmd": [],
     }
 
+    print(f"Payload envoyé: {payload}")
+
     response = requests.post(
         f"{RUNPOD_BASE_URL}/pods",
         headers=_headers(),
         json=payload,
         timeout=60,
     )
+    
+    print(f"Status: {response.status_code}")
+    print(f"Réponse: {response.text}")
+    
     response.raise_for_status()
     data = response.json()
     return data["id"]
-
 
 def get_pod(pod_id: str) -> dict:
     response = requests.get(
