@@ -1,4 +1,4 @@
-FROM apache/airflow:3.1.8
+FROM apache/airflow:3.0.3
 
 USER airflow
 
