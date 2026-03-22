@@ -87,40 +87,35 @@ def get_pod(pod_id: str) -> dict:
 
 
 def wait_until_job_finishes(pod_id: str, timeout_seconds: int = 7200) -> dict:
-    """
-    Attend que le conteneur ait réellement fini son exécution.
-    On ne s'arrête PAS quand le pod devient RUNNING.
-    """
     start = time.time()
-    has_been_running = False
 
     while time.time() - start < timeout_seconds:
-        pod = get_pod(pod_id)
+        try:
+            pod = get_pod(pod_id)
+        except requests.HTTPError as e:
+            
+            if e.response is not None and e.response.status_code == 404:
+                print(f"[WAIT] pod_id={pod_id} introuvable (404), considéré comme terminé.")
+                return {"id": pod_id, "desiredStatus": "TERMINATED"}
+            raise
 
-        desired_status = pod.get("desiredStatus")
+        desired = pod.get("desiredStatus")
         status = pod.get("status")
         container_status = pod.get("containerStatus")
 
-        print(
-            f"[WAIT] pod_id={pod_id} | "
-            f"desiredStatus={desired_status} | "
-            f"status={status} | "
-            f"containerStatus={container_status}"
-        )
+        print(f"[WAIT] pod_id={pod_id} | desiredStatus={desired} | status={status} | containerStatus={container_status}")
 
-        # Le pod a bien démarré à un moment donné
-        if status == "RUNNING" or desired_status == "RUNNING":
-            has_been_running = True
-            print("Le pod est en cours d'exécution...")
+        if desired == "EXITED":
+            print(f"[WAIT] pod_id={pod_id} terminé correctement (desiredStatus=EXITED).")
+            return pod
 
-        # Une fois qu'il a été RUNNING, on attend qu'il quitte cet état
-        if has_been_running and status not in [None, "RUNNING"]:
-            print(f"Le pod a quitté l'état RUNNING avec status={status}")
+        if desired == "TERMINATED":
+            print(f"[WAIT] pod_id={pod_id} déjà terminé (desiredStatus=TERMINATED).")
             return pod
 
         time.sleep(15)
 
-    raise TimeoutError(f"Le pod {pod_id} n'a pas terminé dans le délai imparti.")
+    raise TimeoutError(f"Pod {pod_id} n'a pas atteint EXITED dans le délai imparti.")
 
 
 def terminate_pod(pod_id: str) -> None:
