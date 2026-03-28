@@ -109,27 +109,22 @@ services:
     command: scheduler
     restart: unless-stopped
   mlflow:
-    image: python:3.11-slim
+    build:
+      context: ./mlflow
+      dockerfile: Dockerfile
     container_name: mlflow
     depends_on:
       - postgres
     env_file:
       - .env
-    environment:
-      MLFLOW_BACKEND_STORE_URI: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/mlflow
-      MLFLOW_ARTIFACT_ROOT: /mlflow/artifacts
-    volumes:
-      - /opt/mlops-storage/mlflow/artifacts:/mlflow/artifacts
     command: >
-      bash -c "
-      pip install --no-cache-dir mlflow psycopg2-binary &&
       mlflow server
       --host 0.0.0.0
       --port 5000
       --backend-store-uri postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/mlflow
       --artifacts-destination /mlflow/artifacts
-      --host-allowlist '*'
-      "
+    volumes:
+      - /opt/mlops-storage/mlflow/artifacts:/mlflow/artifacts
     ports:
       - "5000:5000"
     restart: unless-stopped
