@@ -123,6 +123,7 @@ services:
       --port 5000
       --backend-store-uri postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/mlflow
       --artifacts-destination /mlflow/artifacts
+      --allowed-hosts "*"
     volumes:
       - /opt/mlops-storage/mlflow/artifacts:/mlflow/artifacts
     ports:
