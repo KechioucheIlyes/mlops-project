@@ -129,6 +129,24 @@ services:
     ports:
       - "5000:5000"
     restart: unless-stopped
+  model-registry-api:
+    build:
+      context: ./model-registry-api
+      dockerfile: Dockerfile
+    container_name: model-registry-api
+    env_file:
+      - .env
+    environment:
+      REGISTRY_ROOT: /registry
+      REGISTRY_API_TOKEN: ${REGISTRY_API_TOKEN}
+      COMPARISON_PRIMARY_METRIC: test_f1
+      COMPARISON_FALLBACK_METRIC: test_accuracy
+    volumes:
+      - /opt/mlops-storage/registry:/registry
+      - /opt/mlops-storage/uploads:/registry/uploads
+    ports:
+      - "8082:8082"
+    restart: unless-stopped
 
 volumes:
   airflow_postgres_data:
