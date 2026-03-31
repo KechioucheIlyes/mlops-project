@@ -139,8 +139,8 @@ services:
     environment:
       REGISTRY_ROOT: /registry
       REGISTRY_API_TOKEN: ${REGISTRY_API_TOKEN}
-      COMPARISON_PRIMARY_METRIC: test_f1
-      COMPARISON_FALLBACK_METRIC: test_accuracy
+      COMPARISON_PRIMARY_METRIC: f1_score
+      COMPARISON_FALLBACK_METRIC: accuracy
     volumes:
       - /opt/mlops-storage/registry:/registry
       - /opt/mlops-storage/uploads:/registry/uploads
