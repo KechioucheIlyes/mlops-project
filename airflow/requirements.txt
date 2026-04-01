@@ -1,2 +1,4 @@
 requests==2.32.5
 python-dotenv==1.2.2
+mlflow==3.5.0
+psycopg2-binary
