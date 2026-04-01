@@ -14,7 +14,7 @@ def _headers() -> dict:
     }
 
 
-def build_env_payload() -> dict:
+def build_env_payload(run_name: str | None = None) -> dict:
     keys = [
         "KAGGLE_USERNAME",
         "KAGGLE_KEY",
@@ -26,7 +26,6 @@ def build_env_payload() -> dict:
         "OUTPUT_DIR",
         "MODEL_DIR",
         "PLOTS_DIR",
-        "RUN_NAME",
         "BATCH_SIZE",
         "EPOCHS",
         "LEARNING_RATE",
@@ -36,13 +35,18 @@ def build_env_payload() -> dict:
         "LR_SCHEDULER_FACTOR",
         "MIN_LR",
         "RANDOM_STATE",
-        "REGISTRY_API_URL",
-        "REGISTRY_API_TOKEN",
     ]
-    return {k: os.environ[k] for k in keys if k in os.environ}
+    env_payload = {k: os.environ[k] for k in keys if k in os.environ}
+
+    if run_name:
+        env_payload["RUN_NAME"] = run_name
+    elif "RUN_NAME" in os.environ:
+        env_payload["RUN_NAME"] = os.environ["RUN_NAME"]
+
+    return env_payload
 
 
-def create_runpod_pod() -> str:
+def create_runpod_pod(run_name: str | None = None) -> str:
     payload = {
         "name": "train-service-airflow",
         "cloudType": os.getenv("RUNPOD_CLOUD_TYPE", "COMMUNITY"),
@@ -51,7 +55,7 @@ def create_runpod_pod() -> str:
         "gpuTypeIds": [os.getenv("RUNPOD_GPU_TYPE", "NVIDIA GeForce RTX 4090")],
         "gpuTypePriority": "availability",
         "imageName": os.environ["RUNPOD_IMAGE"],
-        "env": build_env_payload(),
+        "env": build_env_payload(run_name=run_name),
         "containerDiskInGb": int(os.getenv("RUNPOD_CONTAINER_DISK_GB", "20")),
         "volumeInGb": int(os.getenv("RUNPOD_VOLUME_GB", "40")),
         "volumeMountPath": "/workspace",
@@ -93,7 +97,6 @@ def wait_until_job_finishes(pod_id: str, timeout_seconds: int = 7200) -> dict:
         try:
             pod = get_pod(pod_id)
         except requests.HTTPError as e:
-            
             if e.response is not None and e.response.status_code == 404:
                 print(f"[WAIT] pod_id={pod_id} introuvable (404), considéré comme terminé.")
                 return {"id": pod_id, "desiredStatus": "TERMINATED"}
@@ -103,7 +106,10 @@ def wait_until_job_finishes(pod_id: str, timeout_seconds: int = 7200) -> dict:
         status = pod.get("status")
         container_status = pod.get("containerStatus")
 
-        print(f"[WAIT] pod_id={pod_id} | desiredStatus={desired} | status={status} | containerStatus={container_status}")
+        print(
+            f"[WAIT] pod_id={pod_id} | desiredStatus={desired} | "
+            f"status={status} | containerStatus={container_status}"
+        )
 
         if desired == "EXITED":
             print(f"[WAIT] pod_id={pod_id} terminé correctement (desiredStatus=EXITED).")
