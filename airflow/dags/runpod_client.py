@@ -35,6 +35,8 @@ def build_env_payload(run_name: str | None = None) -> dict:
         "LR_SCHEDULER_FACTOR",
         "MIN_LR",
         "RANDOM_STATE",
+        "REGISTRY_API_URL",
+        "REGISTRY_API_TOKEN",
     ]
     env_payload = {k: os.environ[k] for k in keys if k in os.environ}
 
