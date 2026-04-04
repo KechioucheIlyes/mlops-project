@@ -1,9 +1,6 @@
-fastapi==0.115.0
-uvicorn[standard]==0.30.6
-python-multipart==0.0.9
-pillow==10.4.0
-numpy==1.26.4
-torch==2.4.1
-torchvision==0.19.1
+fastapi==0.135.2
+uvicorn[standard]==0.42.0
+python-multipart==0.0.22
+prometheus_client==0.24.1
 pydantic==2.12.5
-shifaa==0.1.0
+pydantic-settings==2.13.1
