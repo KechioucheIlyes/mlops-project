@@ -2,9 +2,4 @@ fastapi==0.115.0
 uvicorn[standard]==0.30.6
 python-multipart==0.0.9
 prometheus-client==0.21.0
-pillow==10.4.0
-numpy==1.26.4
-torch==2.4.1
-torchvision==0.19.1
-pydantic==2.12.5
-shifaa==0.1.0
+pydantic-settings==2.6.1
