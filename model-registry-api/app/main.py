@@ -49,9 +49,7 @@ def upload_model(
     run_name: str | None = Form(default=None),
     candidate_id: str | None = Form(default=None),
     results_file: UploadFile = File(...),
-    final_model_full_file: UploadFile = File(...),
-    best_model_file: UploadFile | None = File(default=None),
-    final_model_file: UploadFile | None = File(default=None),
+    best_model_file: UploadFile = File(...),
 ) -> UploadResponse:
     with REQUEST_DURATION_SECONDS.labels("/upload-model").time():
         try:
@@ -61,9 +59,7 @@ def upload_model(
                 candidate_id=effective_candidate_id,
                 run_name=run_name,
                 results_file=results_file,
-                final_model_full_file=final_model_full_file,
                 best_model_file=best_model_file,
-                final_model_file=final_model_file,
             )
             UPLOAD_REQUESTS_TOTAL.labels(status="success").inc()
             return UploadResponse(
@@ -88,6 +84,7 @@ def promote_model(
         try:
             validate_token(authorization)
             result = promote_candidate(payload.candidate_id)
+
             if result["promoted"]:
                 PROMOTION_REQUESTS_TOTAL.labels(status="promoted").inc()
                 PROMOTED_MODELS_TOTAL.inc()

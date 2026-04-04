@@ -92,20 +92,12 @@ def save_candidate_files(
     candidate_id: str,
     run_name: str | None,
     results_file: UploadFile,
-    final_model_full_file: UploadFile,
-    best_model_file: UploadFile | None = None,
-    final_model_file: UploadFile | None = None,
+    best_model_file: UploadFile,
 ) -> tuple[Path, dict[str, Any], str, float]:
     dest_dir = safe_mkdir(candidate_dir(candidate_id))
 
     save_upload_file(dest_dir / "results.json", results_file)
-    save_upload_file(dest_dir / "final_model_full.pth", final_model_full_file)
-
-    if best_model_file is not None:
-        save_upload_file(dest_dir / "best_model.pth", best_model_file)
-
-    if final_model_file is not None:
-        save_upload_file(dest_dir / "final_model.pth", final_model_file)
+    save_upload_file(dest_dir / "best_model.pth", best_model_file)
 
     results = read_json_file(dest_dir / "results.json")
     metric_name, metric_value = extract_metric(results)
@@ -213,7 +205,7 @@ def promote_candidate(candidate_id: str) -> dict[str, Any]:
 
     production_root = get_production_root()
 
-    for filename in ["final_model_full.pth", "best_model.pth", "final_model.pth", "results.json"]:
+    for filename in ["best_model.pth", "results.json"]:
         src = source_dir / filename
         if src.exists():
             shutil.copy2(src, production_root / filename)
@@ -226,7 +218,7 @@ def promote_candidate(candidate_id: str) -> dict[str, Any]:
         "metric_name": candidate_metric_name,
         "metric_value": candidate_metric_value,
         "source_upload_dir": str(source_dir),
-        "production_model_path": str(production_root / "final_model_full.pth"),
+        "production_model_path": str(production_root / "best_model.pth"),
         "results_path": str(production_root / "results.json"),
     }
     write_json_file(current_model_json_path(), current_model)

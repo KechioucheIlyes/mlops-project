@@ -47,7 +47,6 @@ def register_model_task(**context):
     registry_api_url = os.environ["AIRFLOW_REGISTRY_API_URL"].rstrip("/")
     registry_api_token = os.environ["REGISTRY_API_TOKEN"]
 
-    # 1) Récupérer l'expérience MLflow par nom
     exp_response = requests.get(
         f"{tracking_uri}/api/2.0/mlflow/experiments/get-by-name",
         params={"experiment_name": experiment_name},
@@ -63,7 +62,6 @@ def register_model_task(**context):
 
     experiment_id = experiment["experiment_id"]
 
-    # 2) Chercher le run via run_name
     search_payload = {
         "experiment_ids": [experiment_id],
         "filter": f"tags.mlflow.runName = '{run_name}'",
@@ -91,18 +89,16 @@ def register_model_task(**context):
     print(f"Run MLflow trouvé: run_id={run_id}, experiment_id={experiment_id}")
 
     artifacts_root = (
-        Path("/opt/mlops-storage/mlflow/artifacts")
+        Path("/mlflow-artifacts")
         / str(experiment_id)
         / run_id
         / "artifacts"
     )
 
     results_path = artifacts_root / "results" / "results.json"
-    final_model_full_path = artifacts_root / "checkpoints" / "final_model_full.pth"
     best_model_path = artifacts_root / "checkpoints" / "best_model.pth"
-    final_model_path = artifacts_root / "checkpoints" / "final_model.pth"
 
-    required_files = [results_path, final_model_full_path]
+    required_files = [results_path, best_model_path]
     for required_file in required_files:
         if not required_file.exists():
             raise FileNotFoundError(f"Fichier requis introuvable: {required_file}")
@@ -111,42 +107,25 @@ def register_model_task(**context):
         "Authorization": f"Bearer {registry_api_token}",
     }
 
-    with open(results_path, "rb") as results_file, open(final_model_full_path, "rb") as final_model_full_file:
+    with open(results_path, "rb") as results_file, open(best_model_path, "rb") as best_model_file:
         files = {
             "results_file": ("results.json", results_file, "application/json"),
-            "final_model_full_file": ("final_model_full.pth", final_model_full_file, "application/octet-stream"),
+            "best_model_file": ("best_model.pth", best_model_file, "application/octet-stream"),
         }
 
-        optional_opened_files = []
-
-        try:
-            if best_model_path.exists():
-                best_model_file = open(best_model_path, "rb")
-                optional_opened_files.append(best_model_file)
-                files["best_model_file"] = ("best_model.pth", best_model_file, "application/octet-stream")
-
-            if final_model_path.exists():
-                final_model_file = open(final_model_path, "rb")
-                optional_opened_files.append(final_model_file)
-                files["final_model_file"] = ("final_model.pth", final_model_file, "application/octet-stream")
-
-            upload_response = requests.post(
-                f"{registry_api_url}/upload-model",
-                headers=headers,
-                data={
-                    "run_name": run_name,
-                    "candidate_id": candidate_id,
-                },
-                files=files,
-                timeout=300,
-            )
-            print(f"Upload response status: {upload_response.status_code}")
-            print(f"Upload response body: {upload_response.text}")
-            upload_response.raise_for_status()
-
-        finally:
-            for f in optional_opened_files:
-                f.close()
+        upload_response = requests.post(
+            f"{registry_api_url}/upload-model",
+            headers=headers,
+            data={
+                "run_name": run_name,
+                "candidate_id": candidate_id,
+            },
+            files=files,
+            timeout=300,
+        )
+        print(f"Upload response status: {upload_response.status_code}")
+        print(f"Upload response body: {upload_response.text}")
+        upload_response.raise_for_status()
 
     promote_response = requests.post(
         f"{registry_api_url}/promote-model",
