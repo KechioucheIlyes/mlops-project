@@ -30,6 +30,7 @@ services:
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
+      - /opt/mlops-storage/mlflow/artifacts:/opt/mlops-storage/mlflow/artifacts
     command: >
       bash -c "airflow db migrate"
     restart: "no"
@@ -53,6 +54,7 @@ services:
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
+      - /opt/mlops-storage/mlflow/artifacts:/opt/mlops-storage/mlflow/artifacts
     command: dag-processor
     restart: unless-stopped
 
@@ -80,6 +82,7 @@ services:
       - ./airflow/dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./simple_auth_manager_passwords.json:/opt/airflow/simple_auth_manager_passwords.json.generated
+      - /opt/mlops-storage/mlflow/artifacts:/opt/mlops-storage/mlflow/artifacts
     command: api-server
     ports:
       - "8080:8080"
@@ -106,8 +109,10 @@ services:
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
+      - /opt/mlops-storage/mlflow/artifacts:/opt/mlops-storage/mlflow/artifacts
     command: scheduler
     restart: unless-stopped
+
   mlflow:
     build:
       context: ./mlflow
@@ -129,6 +134,7 @@ services:
     ports:
       - "5000:5000"
     restart: unless-stopped
+
   model-registry-api:
     build:
       context: ./model-registry-api
