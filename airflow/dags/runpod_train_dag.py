@@ -6,7 +6,6 @@ import requests
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 
-
 from runpod_client import (
     create_runpod_pod,
     terminate_pod,
@@ -36,7 +35,6 @@ def wait_for_training_task(**context):
 
 
 def register_model_task(**context):
-    from mlflow import MlflowClient
     ti = context["ti"]
 
     run_name = ti.xcom_pull(
@@ -44,36 +42,57 @@ def register_model_task(**context):
         task_ids="create_runpod_pod",
     )
 
-    tracking_uri = os.environ["AIRFLOW_MLFLOW_TRACKING_URI"]
+    tracking_uri = os.environ["AIRFLOW_MLFLOW_TRACKING_URI"].rstrip("/")
     experiment_name = os.environ["MLFLOW_EXPERIMENT_NAME"]
-    registry_api_url = os.environ["AIRFLOW_REGISTRY_API_URL"]
+    registry_api_url = os.environ["AIRFLOW_REGISTRY_API_URL"].rstrip("/")
     registry_api_token = os.environ["REGISTRY_API_TOKEN"]
 
-    client = MlflowClient(tracking_uri=tracking_uri)
+    # 1) Récupérer l'expérience MLflow par nom
+    exp_response = requests.get(
+        f"{tracking_uri}/api/2.0/mlflow/experiments/get-by-name",
+        params={"experiment_name": experiment_name},
+        timeout=30,
+    )
+    print(f"Experiment lookup status: {exp_response.status_code}")
+    print(f"Experiment lookup body: {exp_response.text}")
+    exp_response.raise_for_status()
 
-    experiment = client.get_experiment_by_name(experiment_name)
-    if experiment is None:
+    experiment = exp_response.json().get("experiment")
+    if not experiment:
         raise ValueError(f"Expérience MLflow introuvable: {experiment_name}")
 
-    runs = client.search_runs(
-        experiment_ids=[experiment.experiment_id],
-        filter_string=f"tags.mlflow.runName = '{run_name}'",
-        order_by=["attribute.start_time DESC"],
-        max_results=1,
-    )
+    experiment_id = experiment["experiment_id"]
 
+    # 2) Chercher le run via run_name
+    search_payload = {
+        "experiment_ids": [experiment_id],
+        "filter": f"tags.mlflow.runName = '{run_name}'",
+        "max_results": 1,
+        "order_by": ["attributes.start_time DESC"],
+    }
+
+    runs_response = requests.post(
+        f"{tracking_uri}/api/2.0/mlflow/runs/search",
+        json=search_payload,
+        timeout=30,
+    )
+    print(f"Runs search status: {runs_response.status_code}")
+    print(f"Runs search body: {runs_response.text}")
+    runs_response.raise_for_status()
+
+    runs = runs_response.json().get("runs", [])
     if not runs:
         raise ValueError(f"Aucun run MLflow trouvé pour run_name={run_name}")
 
     run = runs[0]
-    run_id = run.info.run_id
+    run_id = run["info"]["run_id"]
     candidate_id = run_id
 
-    print(f"Run MLflow trouvé: run_id={run_id}, experiment_id={experiment.experiment_id}")
+    print(f"Run MLflow trouvé: run_id={run_id}, experiment_id={experiment_id}")
 
     artifacts_root = (
         Path("/opt/mlops-storage/mlflow/artifacts")
-        / str(experiment.experiment_id)
+        / str(experiment_id)
         / run_id
         / "artifacts"
     )
