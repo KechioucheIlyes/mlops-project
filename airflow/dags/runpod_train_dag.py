@@ -5,7 +5,7 @@ from pathlib import Path
 import requests
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from mlflow import MlflowClient
+
 
 from runpod_client import (
     create_runpod_pod,
@@ -36,6 +36,7 @@ def wait_for_training_task(**context):
 
 
 def register_model_task(**context):
+    from mlflow import MlflowClient
     ti = context["ti"]
 
     run_name = ti.xcom_pull(
