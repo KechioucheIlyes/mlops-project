@@ -154,5 +154,25 @@ services:
       - "8082:8082"
     restart: unless-stopped
 
+  predict-api:
+    build:
+      context: ./predict-api
+      dockerfile: Dockerfile
+    container_name: predict-api
+    env_file:
+      - .env
+    environment:
+      REGISTRY_PRODUCTION_DIR: /registry/production
+      MODEL_FILENAME: best_model.pth
+      MODEL_METADATA_FILENAME: current_model.json
+      MODEL_RESULTS_FILENAME: results.json
+      IMG_SIZE: 224
+      PREDICT_DEVICE: cpu
+    volumes:
+      - /opt/mlops-storage/registry:/registry:ro
+    ports:
+      - "8001:8001"
+    restart: unless-stopped
+
 volumes:
   airflow_postgres_data:
