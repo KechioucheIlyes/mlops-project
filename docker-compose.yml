@@ -78,12 +78,13 @@ services:
       AIRFLOW__AUTH_MANAGER__SIMPLE_AUTH_MANAGER_USERS: "admin:admin"
       AIRFLOW__AUTH_MANAGER__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "true"
       AIRFLOW__CORE__EXECUTION_API_SERVER_URL: "http://airflow-webserver:8080/execution/"
+      AIRFLOW__API__WORKERS: "1"
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./simple_auth_manager_passwords.json:/opt/airflow/simple_auth_manager_passwords.json.generated
       - /opt/mlops-storage/mlflow/artifacts:/mlflow-artifacts:ro
-    command: api-server
+    command: api-server --workers 1
     ports:
       - "8080:8080"
     restart: unless-stopped
