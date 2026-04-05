@@ -69,7 +69,7 @@ def create_runpod_pod(run_name: str | None = None) -> str:
         f"{RUNPOD_BASE_URL}/pods",
         headers=_headers(),
         json=payload,
-        timeout=60,
+        timeout=(10, 60),
     )
 
     print(f"Status création pod: {response.status_code}")
@@ -84,7 +84,7 @@ def get_pod(pod_id: str) -> dict:
     response = requests.get(
         f"{RUNPOD_BASE_URL}/pods/{pod_id}",
         headers=_headers(),
-        timeout=60,
+        timeout=(10, 60),
     )
     response.raise_for_status()
     data = response.json()
@@ -94,15 +94,34 @@ def get_pod(pod_id: str) -> dict:
 
 def wait_until_job_finishes(pod_id: str, timeout_seconds: int = 7200) -> dict:
     start = time.time()
+    consecutive_network_errors = 0
+    max_consecutive_network_errors = 20
 
     while time.time() - start < timeout_seconds:
         try:
             pod = get_pod(pod_id)
+            consecutive_network_errors = 0
+
         except requests.HTTPError as e:
             if e.response is not None and e.response.status_code == 404:
                 print(f"[WAIT] pod_id={pod_id} introuvable (404), considéré comme terminé.")
                 return {"id": pod_id, "desiredStatus": "TERMINATED"}
             raise
+
+        except requests.RequestException as e:
+            consecutive_network_errors += 1
+            print(
+                f"[WAIT] erreur réseau temporaire pour pod_id={pod_id}: {e} "
+                f"(tentative réseau {consecutive_network_errors}/{max_consecutive_network_errors})"
+            )
+
+            if consecutive_network_errors >= max_consecutive_network_errors:
+                raise RuntimeError(
+                    f"Trop d'erreurs réseau consécutives pendant le suivi du pod {pod_id}: {e}"
+                ) from e
+
+            time.sleep(15)
+            continue
 
         desired = pod.get("desiredStatus")
         status = pod.get("status")
@@ -131,7 +150,7 @@ def terminate_pod(pod_id: str) -> None:
     response = requests.delete(
         f"{RUNPOD_BASE_URL}/pods/{pod_id}",
         headers=_headers(),
-        timeout=60,
+        timeout=(10, 60),
     )
     print(f"Status suppression: {response.status_code}")
     print(f"Réponse suppression: {response.text}")
