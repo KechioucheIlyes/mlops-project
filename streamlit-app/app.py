@@ -1,6 +1,3 @@
-import io
-from typing import Any
-
 import requests
 import streamlit as st
 from PIL import Image
@@ -17,7 +14,7 @@ st.set_page_config(
 )
 
 
-def check_api_health() -> tuple[bool, str]:
+def check_api_health():
     try:
         response = requests.get(HEALTH_API_URL, timeout=10)
         response.raise_for_status()
@@ -26,11 +23,10 @@ def check_api_health() -> tuple[bool, str]:
         return False, f"predict-api indisponible: {e}"
 
 
-def call_predict_api(uploaded_file) -> dict[str, Any]:
+def call_predict_api(uploaded_file):
     files = {
         "file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)
     }
-
     response = requests.post(PREDICT_API_URL, files=files, timeout=120)
     response.raise_for_status()
     return response.json()
@@ -58,26 +54,20 @@ with left:
         type=["png", "jpg", "jpeg"],
     )
 
-    camera_file = st.camera_input("Ou prends une photo directement")
-
-    image_source = uploaded_file if uploaded_file is not None else camera_file
-
-    if image_source is not None:
-        image = Image.open(image_source)
+    if uploaded_file is not None:
+        image = Image.open(uploaded_file)
         st.image(image, caption="Image envoyée", use_container_width=True)
 
 with right:
     st.subheader("Résultat")
 
-    image_source = uploaded_file if uploaded_file is not None else camera_file
-
-    if image_source is None:
+    if uploaded_file is None:
         st.info("Ajoute une image pour lancer une prédiction.")
     else:
         if st.button("Lancer la prédiction", use_container_width=True):
             try:
                 with st.spinner("Analyse en cours..."):
-                    result = call_predict_api(image_source)
+                    result = call_predict_api(uploaded_file)
 
                 predicted_class = result.get("predicted_class", "N/A")
                 confidence = float(result.get("confidence", 0.0))
@@ -85,7 +75,6 @@ with right:
                 model_info = result.get("model", {})
 
                 st.success("Prédiction terminée")
-
                 st.metric("Classe prédite", predicted_class)
                 st.metric("Confiance", format_percentage(confidence))
 
@@ -121,4 +110,4 @@ with right:
                 st.error(f"Erreur pendant la prédiction: {e}")
 
 st.markdown("---")
-st.caption("Front Streamlit léger, logique d'inférence déléguée à predict-api.")
+st.caption("Fait avec ❤️ par Djamila Ouarem et Ilyes Kechiouche.")
