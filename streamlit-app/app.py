@@ -37,7 +37,7 @@ def format_percentage(value: float) -> str:
 
 
 st.title("🫁 Shifaa Chest X-ray Classifier")
-st.caption("Interface de prédiction connectée à la predict-api")
+st.caption("Interface de prédiction des radiographies")
 
 ok, health_message = check_api_health()
 if ok:
@@ -62,7 +62,7 @@ with right:
     st.subheader("Résultat")
 
     if uploaded_file is None:
-        st.info("Ajoute une image pour lancer une prédiction.")
+        st.info("Ajoutez une image pour lancer une prédiction.")
     else:
         if st.button("Lancer la prédiction", use_container_width=True):
             try:
@@ -74,7 +74,6 @@ with right:
                 probabilities = result.get("probabilities", {})
                 model_info = result.get("model", {})
 
-                st.success("Prédiction terminée")
                 st.metric("Classe prédite", predicted_class)
                 st.metric("Confiance", format_percentage(confidence))
 
