@@ -18,9 +18,9 @@ def check_api_health():
     try:
         response = requests.get(HEALTH_API_URL, timeout=10)
         response.raise_for_status()
-        return True, "predict-api disponible"
+        return True, "Service de prédiction disponible"
     except Exception as e:
-        return False, f"predict-api indisponible: {e}"
+        return False, f"Service de prediction indisponible: {e}"
 
 
 def call_predict_api(uploaded_file):
