@@ -20,7 +20,7 @@ def check_api_health():
         response.raise_for_status()
         return True, "Service de prédiction disponible"
     except Exception as e:
-        return False, f"Service de prediction indisponible: {e}"
+        return False, f"Service de prédiction indisponible: {e}"
 
 
 def call_predict_api(uploaded_file):
