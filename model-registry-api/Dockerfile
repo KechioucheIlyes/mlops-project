@@ -6,6 +6,8 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
+RUN git config --global --add safe.directory /app
+
 COPY requirements.txt /app/requirements.txt
 
 RUN pip install --upgrade pip && \
