@@ -4,3 +4,4 @@ python-multipart==0.0.22
 prometheus_client==0.24.1
 pydantic==2.12.5
 pydantic-settings==2.13.1
+dvc[s3]==3.67.1

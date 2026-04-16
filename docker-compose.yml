@@ -145,12 +145,19 @@ services:
       - .env
     environment:
       REGISTRY_ROOT: /registry
+      DVC_REGISTRY_ROOT: /app/storage/registry
+      DVC_ENABLED: "true"
+      DVC_REMOTE_NAME: origin
+      DVC_AUTO_PUSH: "true"
       REGISTRY_API_TOKEN: ${REGISTRY_API_TOKEN}
       COMPARISON_PRIMARY_METRIC: f1_score
       COMPARISON_FALLBACK_METRIC: accuracy
     volumes:
       - /opt/mlops-storage/registry:/registry
       - /opt/mlops-storage/uploads:/registry/uploads
+      - ./storage:/app/storage
+      - ./.dvc:/app/.dvc
+      - ./.git:/app/.git
     ports:
       - "8082:8082"
     restart: unless-stopped
