@@ -181,7 +181,7 @@ def sync_all_dvc_to_runtime() -> None:
  
 
 def repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    return Path(__file__).resolve().parents[1]
 
 
 def run_cmd(cmd: list[str], cwd: Path | None = None) -> None:
