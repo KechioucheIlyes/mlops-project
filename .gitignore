@@ -3,3 +3,8 @@ __pycache__/
 *.pyc
 logs/
 .DS_Store
+.env.save
+simple_auth_manager_passwords.json
+.venv-dvc/
+
+.dvc/config.local

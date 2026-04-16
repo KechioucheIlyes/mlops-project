@@ -1,0 +1,5 @@
+outs:
+- md5: d5555d53403932e9ee2ed779e04b6d1e
+  size: 17
+  hash: md5
+  path: hello.txt
