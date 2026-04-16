@@ -170,17 +170,20 @@ services:
     env_file:
       - .env
     environment:
-      REGISTRY_PRODUCTION_DIR: /registry/production
+      REGISTRY_PRODUCTION_DIR: /app/storage/registry/production
+      RUNTIME_PRODUCTION_DIR: /app/runtime-model/production
       MODEL_FILENAME: best_model.pth
       MODEL_METADATA_FILENAME: current_model.json
       MODEL_RESULTS_FILENAME: results.json
       IMG_SIZE: 224
       PREDICT_DEVICE: cpu
     volumes:
-      - /opt/mlops-storage/registry:/registry:ro
+      - ./storage:/app/storage:ro
+      - ./predict-api/runtime-model:/app/runtime-model
     ports:
       - "8001:8001"
     restart: unless-stopped
+    
   streamlit-app:
     build:
       context: ./streamlit-app

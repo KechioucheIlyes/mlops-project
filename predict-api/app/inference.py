@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 import torch
@@ -28,9 +29,52 @@ def load_shifaa_backbone(num_classes: int = 3) -> torch.nn.Module:
     return base_model
 
 
+def safe_mkdir(path: Path) -> Path:
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def clear_directory_contents(path: Path) -> None:
+    safe_mkdir(path)
+    for item in path.iterdir():
+        if item.is_dir():
+            shutil.rmtree(item)
+        else:
+            item.unlink(missing_ok=True)
+
+
+def copy_file_if_exists(src: Path, dst: Path) -> None:
+    if src.exists():
+        safe_mkdir(dst.parent)
+        shutil.copy2(src, dst)
+
+
+def sync_production_to_runtime() -> None:
+    settings = get_settings()
+    source_dir = settings.registry_production_dir
+    runtime_dir = settings.runtime_production_dir
+
+    safe_mkdir(source_dir)
+    safe_mkdir(runtime_dir)
+    clear_directory_contents(runtime_dir)
+
+    copy_file_if_exists(
+        source_dir / settings.model_filename,
+        runtime_dir / settings.model_filename,
+    )
+    copy_file_if_exists(
+        source_dir / settings.metadata_filename,
+        runtime_dir / settings.metadata_filename,
+    )
+    copy_file_if_exists(
+        source_dir / settings.results_filename,
+        runtime_dir / settings.results_filename,
+    )
+
+
 def get_model_paths() -> tuple[Path, Path, Path]:
     settings = get_settings()
-    production_dir = settings.registry_production_dir
+    production_dir = settings.runtime_production_dir
 
     model_path = production_dir / settings.model_filename
     metadata_path = production_dir / settings.metadata_filename
@@ -46,6 +90,13 @@ def load_json_if_exists(path: Path) -> dict | None:
         return json.load(f)
 
 
+def reset_loaded_model() -> None:
+    global _MODEL, _MODEL_META, _RESULTS
+    _MODEL = None
+    _MODEL_META = None
+    _RESULTS = None
+
+
 def load_model_once():
     global _MODEL, _MODEL_META, _RESULTS
 
@@ -53,6 +104,7 @@ def load_model_once():
         return _MODEL
 
     settings = get_settings()
+    sync_production_to_runtime()
     model_path, metadata_path, results_path = get_model_paths()
 
     if not model_path.exists():

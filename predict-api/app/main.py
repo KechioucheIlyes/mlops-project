@@ -4,7 +4,6 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import PlainTextResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
-from app.config import get_settings
 from app.inference import (
     CLASSES,
     get_model_metadata,
@@ -12,6 +11,8 @@ from app.inference import (
     get_results_metadata,
     load_model_once,
     predict_tensor,
+    reset_loaded_model,
+    sync_production_to_runtime,
 )
 from app.metrics import PREDICT_REQUEST_DURATION_SECONDS, PREDICT_REQUESTS_TOTAL
 from app.preprocessing import load_image_as_tensor
@@ -47,6 +48,14 @@ def model_info() -> ModelInfoResponse:
     )
 
 
+@app.post("/reload-model")
+def reload_model() -> dict:
+    sync_production_to_runtime()
+    reset_loaded_model()
+    load_model_once()
+    return {"status": "ok", "message": "Model reloaded successfully."}
+
+
 @app.post("/predict", response_model=PredictResponse)
 def predict(file: UploadFile = File(...)) -> PredictResponse:
     with PREDICT_REQUEST_DURATION_SECONDS.time():
@@ -54,6 +63,8 @@ def predict(file: UploadFile = File(...)) -> PredictResponse:
             image_bytes = file.file.read()
             if not image_bytes:
                 raise HTTPException(status_code=400, detail="Empty file.")
+
+            from app.config import get_settings
 
             settings = get_settings()
             image_tensor = load_image_as_tensor(
