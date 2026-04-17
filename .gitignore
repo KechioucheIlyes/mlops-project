@@ -8,3 +8,5 @@ simple_auth_manager_passwords.json
 .venv-dvc/
 
 .dvc/config.local
+
+predict-api/runtime-model/
