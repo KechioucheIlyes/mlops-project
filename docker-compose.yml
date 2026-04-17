@@ -163,9 +163,7 @@ services:
     restart: unless-stopped
 
   predict-api:
-    build:
-      context: ./predict-api
-      dockerfile: Dockerfile
+    image: rayanilyes76300/predict-api:latest
     container_name: predict-api
     env_file:
       - .env
