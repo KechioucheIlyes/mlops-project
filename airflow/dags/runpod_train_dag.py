@@ -1,4 +1,5 @@
 import os
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -32,6 +33,47 @@ def wait_for_training_task(**context):
 
     final_pod_state = wait_until_job_finishes(pod_id)
     context["ti"].xcom_push(key="runpod_final_state", value=final_pod_state)
+
+
+def download_mlflow_artifact(
+    tracking_uri: str,
+    run_id: str,
+    artifact_path: str,
+    dst_dir: Path,
+) -> Path:
+    response = requests.get(
+        f"{tracking_uri}/api/2.0/mlflow/artifacts/download",
+        params={
+            "run_id": run_id,
+            "path": artifact_path,
+        },
+        timeout=60,
+        allow_redirects=False,
+    )
+    print(f"Download artifact status ({artifact_path}): {response.status_code}")
+    print(f"Download artifact headers ({artifact_path}): {dict(response.headers)}")
+    print(f"Download artifact body ({artifact_path}): {response.text}")
+    response.raise_for_status()
+
+    data = response.json()
+    presigned_url = data.get("url")
+    if not presigned_url:
+        raise ValueError(f"URL de téléchargement introuvable pour l'artefact: {artifact_path}")
+
+    target_path = dst_dir / Path(artifact_path).name
+
+    with requests.get(presigned_url, stream=True, timeout=300) as download_response:
+        download_response.raise_for_status()
+        with open(target_path, "wb") as f:
+            for chunk in download_response.iter_content(chunk_size=1024 * 1024):
+                if chunk:
+                    f.write(chunk)
+
+    if not target_path.exists():
+        raise FileNotFoundError(f"Artefact téléchargé introuvable: {target_path}")
+
+    print(f"Artefact téléchargé: {artifact_path} -> {target_path}")
+    return target_path
 
 
 def register_model_task(**context):
@@ -88,44 +130,45 @@ def register_model_task(**context):
 
     print(f"Run MLflow trouvé: run_id={run_id}, experiment_id={experiment_id}")
 
-    artifacts_root = (
-        Path("/mlflow-artifacts")
-        / str(experiment_id)
-        / run_id
-        / "artifacts"
-    )
-
-    results_path = artifacts_root / "results" / "results.json"
-    best_model_path = artifacts_root / "checkpoints" / "best_model.pth"
-
-    required_files = [results_path, best_model_path]
-    for required_file in required_files:
-        if not required_file.exists():
-            raise FileNotFoundError(f"Fichier requis introuvable: {required_file}")
-
     headers = {
         "Authorization": f"Bearer {registry_api_token}",
     }
 
-    with open(results_path, "rb") as results_file, open(best_model_path, "rb") as best_model_file:
-        files = {
-            "results_file": ("results.json", results_file, "application/json"),
-            "best_model_file": ("best_model.pth", best_model_file, "application/octet-stream"),
-        }
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
 
-        upload_response = requests.post(
-            f"{registry_api_url}/upload-model",
-            headers=headers,
-            data={
-                "run_name": run_name,
-                "candidate_id": candidate_id,
-            },
-            files=files,
-            timeout=300,
+        results_path = download_mlflow_artifact(
+            tracking_uri=tracking_uri,
+            run_id=run_id,
+            artifact_path="results/results.json",
+            dst_dir=tmpdir_path,
         )
-        print(f"Upload response status: {upload_response.status_code}")
-        print(f"Upload response body: {upload_response.text}")
-        upload_response.raise_for_status()
+        best_model_path = download_mlflow_artifact(
+            tracking_uri=tracking_uri,
+            run_id=run_id,
+            artifact_path="checkpoints/best_model.pth",
+            dst_dir=tmpdir_path,
+        )
+
+        with open(results_path, "rb") as results_file, open(best_model_path, "rb") as best_model_file:
+            files = {
+                "results_file": ("results.json", results_file, "application/json"),
+                "best_model_file": ("best_model.pth", best_model_file, "application/octet-stream"),
+            }
+
+            upload_response = requests.post(
+                f"{registry_api_url}/upload-model",
+                headers=headers,
+                data={
+                    "run_name": run_name,
+                    "candidate_id": candidate_id,
+                },
+                files=files,
+                timeout=300,
+            )
+            print(f"Upload response status: {upload_response.status_code}")
+            print(f"Upload response body: {upload_response.text}")
+            upload_response.raise_for_status()
 
     promote_response = requests.post(
         f"{registry_api_url}/promote-model",
