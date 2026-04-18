@@ -2,7 +2,7 @@ import os
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-
+import mlflow.artifacts
 import requests
 from airflow import DAG
 from airflow.operators.python import PythonOperator
@@ -41,39 +41,22 @@ def download_mlflow_artifact(
     artifact_path: str,
     dst_dir: Path,
 ) -> Path:
-    response = requests.get(
-        f"{tracking_uri}/api/2.0/mlflow/artifacts/download",
-        params={
-            "run_id": run_id,
-            "path": artifact_path,
-        },
-        timeout=60,
-        allow_redirects=False,
+    local_path = mlflow.artifacts.download_artifacts(
+        run_id=run_id,
+        artifact_path=artifact_path,
+        dst_path=str(dst_dir),
+        tracking_uri=tracking_uri,
     )
-    print(f"Download artifact status ({artifact_path}): {response.status_code}")
-    print(f"Download artifact headers ({artifact_path}): {dict(response.headers)}")
-    print(f"Download artifact body ({artifact_path}): {response.text}")
-    response.raise_for_status()
 
-    data = response.json()
-    presigned_url = data.get("url")
-    if not presigned_url:
-        raise ValueError(f"URL de téléchargement introuvable pour l'artefact: {artifact_path}")
+    artifact_local_path = Path(local_path)
 
-    target_path = dst_dir / Path(artifact_path).name
+    if not artifact_local_path.exists():
+        raise FileNotFoundError(
+            f"Artefact téléchargé introuvable après download: {artifact_local_path}"
+        )
 
-    with requests.get(presigned_url, stream=True, timeout=300) as download_response:
-        download_response.raise_for_status()
-        with open(target_path, "wb") as f:
-            for chunk in download_response.iter_content(chunk_size=1024 * 1024):
-                if chunk:
-                    f.write(chunk)
-
-    if not target_path.exists():
-        raise FileNotFoundError(f"Artefact téléchargé introuvable: {target_path}")
-
-    print(f"Artefact téléchargé: {artifact_path} -> {target_path}")
-    return target_path
+    print(f"Artefact téléchargé: {artifact_path} -> {artifact_local_path}")
+    return artifact_local_path
 
 
 def register_model_task(**context):
